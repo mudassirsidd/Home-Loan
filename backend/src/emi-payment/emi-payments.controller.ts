@@ -23,17 +23,17 @@ export class EmiPaymentsController {
     return this.emiService.getEmiHistory(loanId);
   }
 
-  @Patch('approve/:emiId')
-  async approveEmi(@Param('emiId') emiId: number) {
-    return this.emiService.approveEmiPayment(+emiId);
-  } 
+//   @Patch('approve/:emiId')
+//   async approveEmi(@Param('emiId') emiId: number) {
+//     return this.emiService.approveEmiPayment(+emiId);
+//   } 
 
-  @Get('all/:emiId')
-  async getEmiPayment(@Param('emiId') emiId: number) {
+//   @Get('all/:emiId')
+//   async getEmiPayment(@Param('emiId') emiId: number) {
     
-    return this.emiService.getEmiPayment(+emiId);
+//     return this.emiService.getEmiPayment(+emiId);
 
-  }
+//   }
 //   async getPendingEmiPayments(@Param('userId') userId: number) {
 //     return this.emiService.getUserEmiPayments(+userId)
 //       .then(payments => payments.filter(payment => payment.status === 'pending'));

@@ -35,12 +35,18 @@ export class LoanController {
     return this.loanService.applyLoan(user, data);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  async getLoan(@Req() req: Request) {
-    const user = req.user as User;
-    return this.loanService.getLoanByUser(user.id);
-  }
+@UseGuards(JwtAuthGuard)
+@Get('user/:userId')
+async getLoanByUserId(@Param('userId') userId: string) {
+  return this.loanService.getLoanByUser(+userId);
+}
+
+@UseGuards(JwtAuthGuard)
+@Get()
+async getLoan(@Req() req: Request) {
+  const user = req.user as User;
+  return this.loanService.getLoanByUser(user.id);
+}
 
   // Admin-only: Get all loans
   @UseGuards(JwtAuthGuard)

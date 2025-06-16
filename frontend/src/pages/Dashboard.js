@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 export default function LoanForm() {
   const name = localStorage.getItem("userName") || "User Name";
@@ -26,7 +27,7 @@ export default function LoanForm() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [emiHistory, setEmiHistory] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState("");
 
   const fetchLoans = async () => {
     try {
@@ -90,7 +91,8 @@ export default function LoanForm() {
         },
       });
 
-      alert("Loan application submitted!");
+      toast.success(" Loan application submitted!");
+
       setFormData({
         bank_name: "",
         loanAmount: "",
@@ -100,11 +102,12 @@ export default function LoanForm() {
         duration: "",
         intrestRate: 5,
       });
+
       setShowForm(false);
       fetchLoans();
     } catch (error) {
       console.error("Submission error:", error.response?.data || error.message);
-      alert("Error submitting loan application.");
+      toast.error(" Error submitting loan application.");
     }
   };
 
@@ -173,12 +176,12 @@ export default function LoanForm() {
         }
       );
 
-      alert("✅ EMI Paid Successfully!");
+      toast.success("EMI Paid Successfully!");
       setPayModal(false);
       fetchLoans();
     } catch (error) {
       console.error("Payment error:", error);
-      alert("❌ EMI Payment Failed!");
+      toast.error("EMI Payment Failed!");
     }
   };
 
@@ -188,6 +191,7 @@ export default function LoanForm() {
 
   const handleViewHistory = async (loanId) => {
     try {
+      const token = localStorage.getItem("token"); // <-- moved inside function
       const res = await axios.get(
         `http://localhost:3000/emi-payments/history/${loanId}`,
         {
@@ -196,61 +200,63 @@ export default function LoanForm() {
       );
       setEmiHistory(res.data);
       setShowHistoryModal(true);
+      toast.success(" EMI payment history loaded!");
     } catch (error) {
       console.error("Error fetching EMI history:", error);
-      alert("Failed to load EMI payment history.");
+      toast.error("Failed to load EMI payment history.");
     }
   };
-
 
   const generateMonthOptions = (loan) => {
     const months = [];
     const startDate = new Date(loan.date || loan.created_at || new Date());
-  const totalMonths = parseInt(loan.duration || 12); 
-  const paidMonths = parseInt(loan.emiPayments?.filter(p => p.status === 'paid').length || 0);
-  
-  // console.log('Start Date:', startDate, 'Total Months:', totalMonths, 'Paid Months:', paidMonths);
-    
-  for (let i = 0; i < totalMonths; i++) {
-    const monthDate = new Date(startDate);
-    monthDate.setMonth(startDate.getMonth() + i);
-    
-    const monthYear = monthDate.toLocaleDateString('en-US', { 
-      month: 'long', 
-      year: 'numeric' 
-    });
-      
-    const isPaid = i < paidMonths;
-    const isOverdue = !isPaid && monthDate < new Date();
-    
-    months.push({
-      value: `${i + 1}`,
-      label: `Month ${i + 1} - ${monthYear}`,
-      isPaid: isPaid,
-      isOverdue: isOverdue,
-      dueDate: monthDate
-    });
+    const totalMonths = parseInt(loan.duration || 12);
+    const paidMonths = parseInt(
+      loan.emiPayments?.filter((p) => p.status === "paid").length || 0
+    );
+
+    // console.log('Start Date:', startDate, 'Total Months:', totalMonths, 'Paid Months:', paidMonths);
+
+    for (let i = 0; i < totalMonths; i++) {
+      const monthDate = new Date(startDate);
+      monthDate.setMonth(startDate.getMonth() + i);
+
+      const monthYear = monthDate.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+
+      const isPaid = i < paidMonths;
+      const isOverdue = !isPaid && monthDate < new Date();
+
+      months.push({
+        value: `${i + 1}`,
+        label: `Month ${i + 1} - ${monthYear}`,
+        isPaid: isPaid,
+        isOverdue: isOverdue,
+        dueDate: monthDate,
+      });
     }
     // console.log('Generated months:', months);
     return months;
   };
-  
+
   const getSelectedMonthDueDate = () => {
-    if (!selectedMonth || !selectedLoan) return '';
-    
-    const startDate = new Date(selectedLoan.date || selectedLoan.created_at || new Date());
+    if (!selectedMonth || !selectedLoan) return "";
+
+    const startDate = new Date(
+      selectedLoan.date || selectedLoan.created_at || new Date()
+    );
     const monthIndex = parseInt(selectedMonth) - 1;
     const dueDate = new Date(startDate);
     dueDate.setMonth(startDate.getMonth() + monthIndex);
-    
-    return dueDate.toLocaleDateString('en-IN');
+
+    return dueDate.toLocaleDateString("en-IN");
   };
 
- 
-
   return (
-    <div className="min-h-screen bg-gray-100 font-sans">
-      <header className="bg-blue-600 text-white py-4 shadow-md">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-100 to-white font-sans text-gray-800">
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-5 shadow-lg">
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center">
           <h1 className="text-xl font-semibold">Welcome, {name}</h1>
           <div className="text-sm text-gray-100 text-center">
@@ -272,8 +278,8 @@ export default function LoanForm() {
                   (loan) => loan.status === 0
                 );
                 if (hasPendingLoan) {
-                  alert(
-                    "You already have a pending loan. Please wait for approval before applying again."
+                  toast.warn(
+                    " You already have a pending loan. Please wait for approval before applying again."
                   );
                 } else {
                   setShowForm(true);
@@ -293,10 +299,10 @@ export default function LoanForm() {
             {userLoans.map((loan, index) => (
               <div
                 key={index}
-                className="max-w-md mx-auto bg-green-100 shadow-md rounded-lg p-6 mt-6 space-y-4 text-gray-800"
+                className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 transition-transform hover:scale-105 hover:shadow-xl duration-300"
               >
-                <h2 className="text-2xl font-bold text-green-700">
-                  Loan Application Submitted
+                <h2 className="text-2xl font-bold text-blue-700 mb-2">
+                  Loan Application
                 </h2>
                 <p>
                   <strong>Bank Name:</strong> {loan.bank_name}
@@ -360,7 +366,7 @@ export default function LoanForm() {
         !userLoans.some((loan) => loan.status === 0) && (
           <form
             onSubmit={handleSubmit}
-            className="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 mt-6 space-y-4"
+            className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl p-8 mt-10 space-y-6 border border-gray-200"
           >
             <h2 className="text-xl font-bold mb-4">Bank Loan Application</h2>
 
@@ -474,8 +480,9 @@ export default function LoanForm() {
 
       {/* EMI Detail Modal */}
       {showEMI && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full animate-fadeIn">
+      
             <h2 className="text-xl font-bold mb-4 text-center">EMI Details</h2>
             <p>
               <strong>Bank Name:</strong> {emiDetails.bankName}
@@ -518,94 +525,111 @@ export default function LoanForm() {
 
       {/* EMI Pay Modal */}
       {payModal && selectedLoan && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-bold mb-4 text-center">
-        Confirm EMI Payment
-      </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 text-center">
+              Confirm EMI Payment
+            </h2>
 
-      <p className="text-center mb-4">
-        Are you sure you want to pay EMI for{" "}
-        <strong>{selectedLoan.bank_name}</strong>?
-      </p>
+            <p className="text-center mb-4">
+              Are you sure you want to pay EMI for{" "}
+              <strong>{selectedLoan.bank_name}</strong>?
+            </p>
 
-      {/* Month Selection Dropdown */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Month to Pay:
-        </label>
-        <select 
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          value={selectedMonth || ''}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        >
-          <option value="">Select a month</option>
-          {generateMonthOptions(selectedLoan).map((month, index) => (
-            <option 
-              key={index} 
-              value={month.value}
-              disabled={month.isPaid}
-              style={{ 
-                color: month.isPaid ? '#9CA3AF' : month.isOverdue ? '#EF4444' : '#374151' 
-              }}
-            >
-              {month.label} {month.isPaid ? '✓ Paid' : month.isOverdue ? '⚠ Overdue' : ''}
-            </option>
-          ))}
-        </select>
-      </div>
+            {/* Month Selection Dropdown */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Month to Pay:
+              </label>
+              <select
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={selectedMonth || ""}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+              >
+                <option value="">Select a month</option>
+                {generateMonthOptions(selectedLoan).map((month, index) => (
+                  <option
+                    key={index}
+                    value={month.value}
+                    disabled={month.isPaid}
+                    style={{
+                      color: month.isPaid
+                        ? "#9CA3AF"
+                        : month.isOverdue
+                        ? "#EF4444"
+                        : "#374151",
+                    }}
+                  >
+                    {month.label}{" "}
+                    {month.isPaid
+                      ? "✓ Paid"
+                      : month.isOverdue
+                      ? "⚠ Overdue"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      {/* Payment Summary */}
-      {selectedMonth && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold mb-2">Payment Details:</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-600">Loan Amount:</span>
-              <span className="font-semibold ml-2">₹{selectedLoan.loanAmount}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Due Date:</span>
-              <span className="font-semibold ml-2">{getSelectedMonthDueDate()}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Duration:</span>
-              <span className="font-semibold ml-2">{selectedLoan.duration} months</span>
-            </div>
-            <div>
-              <span className="text-gray-600">Interest Rate:</span>
-              <span className="font-semibold ml-2">{selectedLoan.intrestRate}%</span>
+            {/* Payment Summary */}
+            {selectedMonth && (
+              <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <h3 className="font-semibold mb-2">Payment Details:</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Loan Amount:</span>
+                    <span className="font-semibold ml-2">
+                      ₹{selectedLoan.loanAmount}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Due Date:</span>
+                    <span className="font-semibold ml-2">
+                      {getSelectedMonthDueDate()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Duration:</span>
+                    <span className="font-semibold ml-2">
+                      {selectedLoan.duration} months
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Interest Rate:</span>
+                    <span className="font-semibold ml-2">
+                      {selectedLoan.intrestRate}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={confirmPayEMI}
+                disabled={!selectedMonth} //true
+                className={`px-6 py-2 rounded-lg font-medium ${
+                  selectedMonth
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Pay EMI
+              </button>
+              <button
+                onClick={() => {
+                  setPayModal(false);
+                  setSelectedMonth("");
+                }}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-4">
-        <button
-          onClick={confirmPayEMI}
-          disabled={!selectedMonth} //true
-          className={`px-6 py-2 rounded-lg font-medium ${
-            selectedMonth 
-              ? 'bg-green-500 hover:bg-green-600 text-white' 
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Pay EMI
-        </button>
-        <button
-          onClick={() => {
-            setPayModal(false);
-            setSelectedMonth('');
-          }}
-          className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
       {showHistoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

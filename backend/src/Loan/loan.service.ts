@@ -74,6 +74,7 @@ export class LoanService {
       
     });
   }
+  // ✅ Get loan by user ID
 
   // ✅ Admin: Get all loans
   async getAllLoans() {
