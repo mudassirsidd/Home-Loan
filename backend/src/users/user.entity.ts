@@ -2,6 +2,7 @@ import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { Loan } from '../Loan/loan.entity';
 import { EmiPayment } from '../emi-payment/emi-payment.entity';
 
+
 @Entity()
 export class User {
   @PrimaryGeneratedColumn()
@@ -25,5 +26,6 @@ export class User {
   // src/users/user.entity.ts
 @OneToMany(() => EmiPayment, (emi) => emi.user)
 emiPayments: EmiPayment[];
+
 
 }

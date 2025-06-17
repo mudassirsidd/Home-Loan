@@ -10,7 +10,7 @@ import { Bank } from './banks/bank.entity';
 import { LoanModule } from './Loan/loan.module';
 import { Loan } from './Loan/loan.entity';
 import { EmiPayment } from './emi-payment/emi-payment.entity';
-import{ EmiPaymentsModule } from './emi-payment/emi-payments.module';
+import { EmiPaymentsModule } from './emi-payment/emi-payments.module';
 
 @Module({
   imports: [
@@ -23,7 +23,6 @@ import{ EmiPaymentsModule } from './emi-payment/emi-payments.module';
       database: 'crud',
       entities: [User, Bank, Loan, EmiPayment],
       synchronize: true, // turn off in production!
-      
     }),
 
     AuthModule,

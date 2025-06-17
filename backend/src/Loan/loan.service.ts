@@ -16,20 +16,7 @@ export class LoanService {
     private loanRepo: Repository<Loan>,
   ) {}
 
- 
   async applyLoan(user: User, data: CreateLoanDto) {
-   
-    // const existingLoan = await this.loanRepo.findOne({
-    //   where: { user: { id: user.id } },
-    //   relations: ['user'],
-    // });
-
-    // if (existingLoan) {
-    //   throw new BadRequestException(
-    //     'You have already submitted a loan application.',
-    //   );
-    // }
-
     const existingPendingLoan = await this.loanRepo.findOne({
       where: {
         user: { id: user.id },
@@ -37,7 +24,7 @@ export class LoanService {
       },
       relations: ['user'],
     });
-  
+
     if (existingPendingLoan) {
       throw new BadRequestException(
         'You already have a pending loan. Please wait for approval before applying again.',
@@ -71,7 +58,6 @@ export class LoanService {
       where: { user: { id: userId } },
       order: { id: 'DESC' },
       relations: ['user', 'emiPayments'],
-      
     });
   }
   // ✅ Get loan by user ID
@@ -93,5 +79,4 @@ export class LoanService {
     loan.status = status;
     return this.loanRepo.save(loan);
   }
-  
 }

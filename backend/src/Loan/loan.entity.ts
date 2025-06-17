@@ -43,7 +43,7 @@ export class Loan {
 
   @Column()
   intrestRate: string; // New field for interest rate
-  
+
   @ManyToOne(() => User, (user) => user.loans)
   user: User;
 

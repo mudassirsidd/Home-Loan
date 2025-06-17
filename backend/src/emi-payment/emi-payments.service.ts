@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { EmiPayment } from './emi-payment.entity';
 import { User } from '../users/user.entity';
 import { Loan } from '../Loan/loan.entity';
+import { LoanService } from '../Loan/loan.service';
 @Injectable()
 export class EmiPaymentsService {
   constructor(
@@ -15,12 +16,12 @@ export class EmiPaymentsService {
     private readonly loanRepo: Repository<Loan>,
     @InjectRepository(EmiPayment)
     private readonly emiPaymentRepository: Repository<EmiPayment>,
+    private readonly loanService: LoanService, // Inject LoanService to access its methods
   ) {}
 
   async payEmi(userId: number, loanId: number, amount: number) {
     const user = await this.userRepo.findOneBy({ id: userId });
     const loan = await this.loanRepo.findOneBy({ id: loanId });
-    
 
     if (!user || !loan) throw new NotFoundException('User or Loan not found');
 
@@ -48,25 +49,4 @@ export class EmiPaymentsService {
       relations: ['loan'],
     });
   }
-  async approveEmiPayment(emiId: number) {
-
-    const payment = await this.emiRepo.findOne({ where: { emiId: emiId } });
-    if (!payment) throw new NotFoundException('EMI Payment not found');
-  
-    payment.status = 'paid';
-   
-    return this.emiRepo.save(payment);
-  }
-    // async getPendingEmiPayments(userId: number): Promise<EmiPayment[]> {
-    //     console.log('Fetching pending EMI payments for user:', userId);
-    //     return this.emiRepo.find({
-    //     where: { user: { id: userId }, status: 'pending' },
-    //     order: { paymentDate: 'DESC' },
-    //     });
-    // }
-    async getEmiPayment(emiId: number): Promise<EmiPayment> {
-      const payment = await this.emiRepo.findOne({ where: { emiId: emiId } });
-      if (!payment) throw new NotFoundException('EMI Payment not found');
-      return payment;
-    }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { FaQuestionCircle } from "react-icons/fa";
 
 export default function LoanForm() {
   const name = localStorage.getItem("userName") || "User Name";
@@ -28,6 +29,8 @@ export default function LoanForm() {
   const [emiHistory, setEmiHistory] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [message, setMessage] = useState("");
 
   const fetchLoans = async () => {
     try {
@@ -237,9 +240,10 @@ export default function LoanForm() {
         dueDate: monthDate,
       });
     }
-    // console.log('Generated months:', months);
     return months;
   };
+  //   const monthOptions = generateMonthOptions(selectedLoan);
+  // const allEmisPaid = monthOptions.every((month) => month.isPaid);
 
   const getSelectedMonthDueDate = () => {
     if (!selectedMonth || !selectedLoan) return "";
@@ -252,6 +256,22 @@ export default function LoanForm() {
     dueDate.setMonth(startDate.getMonth() + monthIndex);
 
     return dueDate.toLocaleDateString("en-IN");
+  };
+
+  const handleSendMessage = async () => {
+    try {
+
+      const userId = localStorage.getItem("userId");
+      await axios.post("http://localhost:3000/help-support", {
+        userId,
+        message,
+      });
+      toast.success("Message sent to admin!");
+      setMessage("");
+      setShowSupportModal(false);
+    } catch (err) {
+      toast.error("Error sending message");
+    }
   };
 
   return (
@@ -289,6 +309,14 @@ export default function LoanForm() {
             >
               New Loan Application
             </button>
+
+            <button
+        onClick={() => setShowSupportModal(true)}
+        className="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg shadow-md"
+      >
+        <FaQuestionCircle className="mr-2" />
+        Help & Support
+      </button>
           </div>
         </div>
       </header>
@@ -336,6 +364,7 @@ export default function LoanForm() {
                     </span>
                   )}
                 </p>
+
                 <button
                   onClick={() => handleShowEMI(loan)}
                   className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow mt-4"
@@ -381,7 +410,10 @@ export default function LoanForm() {
               >
                 <option value="">Select a Bank</option>
                 {banks.map((bank) => (
-                  <option key={bank.id} value={bank.bank_name}>
+                  <option
+                    key={bank.id}
+                    value={bank.bank_name}
+                  >
                     {bank.bank_name}
                   </option>
                 ))}
@@ -481,8 +513,7 @@ export default function LoanForm() {
       {/* EMI Detail Modal */}
       {showEMI && (
         <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full animate-fadeIn">
-      
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full animate-fadeIn">
             <h2 className="text-xl font-bold mb-4 text-center">EMI Details</h2>
             <p>
               <strong>Bank Name:</strong> {emiDetails.bankName}
@@ -541,91 +572,110 @@ export default function LoanForm() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Month to Pay:
               </label>
-              <select
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={selectedMonth || ""}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-              >
-                <option value="">Select a month</option>
-                {generateMonthOptions(selectedLoan).map((month, index) => (
-                  <option
-                    key={index}
-                    value={month.value}
-                    disabled={month.isPaid}
-                    style={{
-                      color: month.isPaid
-                        ? "#9CA3AF"
-                        : month.isOverdue
-                        ? "#EF4444"
-                        : "#374151",
-                    }}
-                  >
-                    {month.label}{" "}
-                    {month.isPaid
-                      ? "✓ Paid"
-                      : month.isOverdue
-                      ? "⚠ Overdue"
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            {/* Payment Summary */}
-            {selectedMonth && (
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <h3 className="font-semibold mb-2">Payment Details:</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-600">Loan Amount:</span>
-                    <span className="font-semibold ml-2">
-                      ₹{selectedLoan.loanAmount}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Due Date:</span>
-                    <span className="font-semibold ml-2">
-                      {getSelectedMonthDueDate()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Duration:</span>
-                    <span className="font-semibold ml-2">
-                      {selectedLoan.duration} months
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Interest Rate:</span>
-                    <span className="font-semibold ml-2">
-                      {selectedLoan.intrestRate}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+              {(() => {
+                const monthOptions = generateMonthOptions(selectedLoan);
+                const allEmisPaid = monthOptions.every((month) => month.isPaid);
 
-            {/* Action Buttons */}
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={confirmPayEMI}
-                disabled={!selectedMonth} //true
-                className={`px-6 py-2 rounded-lg font-medium ${
-                  selectedMonth
-                    ? "bg-green-500 hover:bg-green-600 text-white"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                Pay EMI
-              </button>
-              <button
-                onClick={() => {
-                  setPayModal(false);
-                  setSelectedMonth("");
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium"
-              >
-                Cancel
-              </button>
+                return (
+                  <>
+                    <select
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={selectedMonth || ""}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      disabled={allEmisPaid}
+                    >
+                      <option value="">Select a month</option>
+                      {monthOptions.map((month, index) => (
+                        <option
+                          key={index}
+                          value={month.value}
+                          disabled={month.isPaid}
+                          style={{
+                            color: month.isPaid
+                              ? "#9CA3AF"
+                              : month.isOverdue
+                              ? "#EF4444"
+                              : "#374151",
+                          }}
+                        >
+                          {month.label}{" "}
+                          {month.isPaid
+                            ? "✓ Paid"
+                            : month.isOverdue
+                            ? "⚠ Overdue"
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+
+                    {allEmisPaid && (
+                      <p className="text-green-600 mt-2 font-semibold">
+                        🎉 EMI Completed
+                      </p>
+                    )}
+
+                    {/* Payment Summary */}
+                    {selectedMonth && !allEmisPaid && (
+                      <div className="bg-gray-50 p-4 rounded-lg mb-6 mt-4">
+                        <h3 className="font-semibold mb-2">Payment Details:</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Loan Amount:</span>
+                            <span className="font-semibold ml-2">
+                              ₹{selectedLoan.loanAmount}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Due Date:</span>
+                            <span className="font-semibold ml-2">
+                              {getSelectedMonthDueDate()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Duration:</span>
+                            <span className="font-semibold ml-2">
+                              {selectedLoan.duration} months
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">
+                              Interest Rate:
+                            </span>
+                            <span className="font-semibold ml-2">
+                              {selectedLoan.intrestRate}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-center space-x-4 mt-2">
+                      <button
+                        onClick={confirmPayEMI}
+                        disabled={allEmisPaid || !selectedMonth}
+                        className={`px-6 py-2 rounded-lg font-medium ${
+                          allEmisPaid || !selectedMonth
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-green-500 hover:bg-green-600 text-white"
+                        }`}
+                      >
+                        Pay EMI
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPayModal(false);
+                          setSelectedMonth("");
+                        }}
+                        className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -676,6 +726,30 @@ export default function LoanForm() {
           </div>
         </div>
       )}
+
+{showSupportModal && (
+  <div className="fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50">
+    <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
+      <span>Help & Support</span>
+      <button onClick={() => setShowSupportModal(false)}>✖</button>
+    </div>
+    <div className="p-4">
+      <textarea
+        rows={4}
+        className="w-full border p-2 rounded"
+        placeholder="Type your message to admin..."
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      ></textarea>
+      <button
+        onClick={handleSendMessage}
+        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }

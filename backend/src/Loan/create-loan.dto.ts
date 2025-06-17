@@ -33,7 +33,8 @@ export class CreateLoanDto {
 
   @IsNotEmpty()
   @IsString()
-  intrestRate: string; // New field for interest rate
+  intrestRate: string;
+
   
 }
 
