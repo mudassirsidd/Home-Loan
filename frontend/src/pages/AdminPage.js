@@ -8,6 +8,40 @@ export default function AdminPage() {
   const [userLoans, setUserLoans] = useState([]);
   const [emiHistory, setEmiHistory] = useState([]);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminUserId, setAdminUserId] = useState("");
+  const [adminMessage, setAdminMessage] = useState("");
+  const [adminMessages, setAdminMessages] = useState([]);
+
+  const fetchAdminMessages = async () => {
+    if (!adminUserId) return;
+    try {
+      const res = await axios.get(`http://localhost:3000/chat/${adminUserId}`);
+      setAdminMessages(res.data.messages);
+    } catch (err) {
+      console.error("Admin fetch error:", err);
+    }
+  };
+
+  const handleAdminSendMessage = async () => {
+    if (!adminUserId || !adminMessage.trim()) return;
+
+    try {
+      await axios.post("http://localhost:3000/chat", {
+        userId: Number(adminUserId),
+        message: adminMessage,
+        sender: "admin",
+      });
+      setAdminMessage("");
+      fetchAdminMessages();
+    } catch (err) {
+      console.error("Admin send error:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (showAdminModal) fetchAdminMessages();
+  }, [showAdminModal, adminUserId]);
 
   const fetchUsers = async () => {
     try {
@@ -48,7 +82,9 @@ export default function AdminPage() {
           },
         }
       );
-      toast.success(`Loan ${status === 1 ? "approved" : "updated"} successfully!`);
+      toast.success(
+        `Loan ${status === 1 ? "approved" : "updated"} successfully!`
+      );
       fetchUserLoans(selectedUser);
     } catch (err) {
       console.error("Error updating loan status:", err);
@@ -97,7 +133,7 @@ export default function AdminPage() {
             Logout
           </button>
         </div>
-  
+
         {/* Users Table */}
         <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-2xl mb-12 border border-white/20">
           <h3 className="text-2xl font-bold mb-5 text-[#90e0ef]">👤 Users</h3>
@@ -109,6 +145,7 @@ export default function AdminPage() {
                   <th className="p-4 text-left">Name</th>
                   <th className="p-4 text-left">Email</th>
                   <th className="p-4 text-left">Action</th>
+                  <th className="p-4 text-left">Message</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,14 +170,30 @@ export default function AdminPage() {
                           {selectedUser === user.id ? "Hide Loan" : "View Loan"}
                         </button>
                       </td>
+                      <td className="p-3">
+                        <button
+                          onClick={() => {
+                            setAdminUserId(user.id); // ✅ Set the user ID here
+                            setShowAdminModal(true);
+                          }}
+                          className="bg-green-600 text-white px-4 py-2 rounded"
+                        >
+                          Open Chat
+                        </button>
+                      </td>
                     </tr>
-  
+
                     {/* Loan Row */}
                     {selectedUser === user.id && (
                       <tr>
-                        <td colSpan="4" className="bg-white/5 p-4">
+                        <td
+                          colSpan="4"
+                          className="bg-white/5 p-4"
+                        >
                           <div className="rounded-lg border border-white/10 p-4 bg-black/20 backdrop-blur-lg shadow-lg">
-                            <h4 className="text-lg font-bold mb-3 text-[#ffd6a5]">📄 Loan Details</h4>
+                            <h4 className="text-lg font-bold mb-3 text-[#ffd6a5]">
+                              📄 Loan Details
+                            </h4>
                             {userLoans.length > 0 ? (
                               <table className="w-full text-sm text-white border border-white/20">
                                 <thead className="bg-white/10">
@@ -150,7 +203,9 @@ export default function AdminPage() {
                                     <th className="p-3 text-left">Status</th>
                                     <th className="p-3 text-left">Date</th>
                                     <th className="p-3 text-left">Actions</th>
-                                    <th className="p-3 text-left">EMI History</th>
+                                    <th className="p-3 text-left">
+                                      EMI History
+                                    </th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -160,7 +215,9 @@ export default function AdminPage() {
                                       className="hover:bg-white/10 border-b border-white/10 transition duration-200"
                                     >
                                       <td className="p-3">{loan.bank_name}</td>
-                                      <td className="p-3">₹{loan.loanAmount}</td>
+                                      <td className="p-3">
+                                        ₹{loan.loanAmount}
+                                      </td>
                                       <td className="p-3 capitalize">
                                         {loan.status === 0 && "Pending"}
                                         {loan.status === 1 && "Approved"}
@@ -169,14 +226,18 @@ export default function AdminPage() {
                                       <td className="p-3">{loan.date}</td>
                                       <td className="p-3 space-x-2">
                                         <button
-                                          onClick={() => updateStatus(loan.id, 1)}
+                                          onClick={() =>
+                                            updateStatus(loan.id, 1)
+                                          }
                                           disabled={loan.status === 1}
                                           className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded transition disabled:opacity-40"
                                         >
                                           Approve
                                         </button>
                                         <button
-                                          onClick={() => updateStatus(loan.id, 2)}
+                                          onClick={() =>
+                                            updateStatus(loan.id, 2)
+                                          }
                                           disabled={loan.status === 2}
                                           className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded transition disabled:opacity-40"
                                         >
@@ -185,7 +246,9 @@ export default function AdminPage() {
                                       </td>
                                       <td className="p-3">
                                         <button
-                                          onClick={() => handleViewHistory(loan.id)}
+                                          onClick={() =>
+                                            handleViewHistory(loan.id)
+                                          }
                                           className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded transition"
                                         >
                                           View History
@@ -196,7 +259,9 @@ export default function AdminPage() {
                                 </tbody>
                               </table>
                             ) : (
-                              <p className="text-gray-300">No loan records found.</p>
+                              <p className="text-gray-300">
+                                No loan records found.
+                              </p>
                             )}
                           </div>
                         </td>
@@ -208,25 +273,41 @@ export default function AdminPage() {
             </table>
           </div>
         </div>
-  
+
         {/* EMI History Modal */}
         {showHistoryModal && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl shadow-2xl p-6 max-w-xl w-full border border-gray-300">
-              <h2 className="text-xl font-extrabold mb-4 text-center text-black">📜 EMI Payment History</h2>
+              <h2 className="text-xl font-extrabold mb-4 text-center text-black">
+                📜 EMI Payment History
+              </h2>
               {emiHistory.length > 0 ? (
                 <ul className="space-y-3 max-h-80 overflow-y-auto">
                   {emiHistory.map((payment, index) => (
-                    <li key={index} className="border p-3 rounded-lg bg-gray-50 text-gray-700">
-                      <p><strong>Month:</strong> {index + 1}</p>
-                      <p><strong>Amount:</strong> ₹{payment.amount}</p>
-                      <p><strong>Paid On:</strong> {new Date(payment.paymentDate).toLocaleDateString()}</p>
-                      <p><strong>Status:</strong> {payment.status}</p>
+                    <li
+                      key={index}
+                      className="border p-3 rounded-lg bg-gray-50 text-gray-700"
+                    >
+                      <p>
+                        <strong>Month:</strong> {index + 1}
+                      </p>
+                      <p>
+                        <strong>Amount:</strong> ₹{payment.amount}
+                      </p>
+                      <p>
+                        <strong>Paid On:</strong>{" "}
+                        {new Date(payment.paymentDate).toLocaleDateString()}
+                      </p>
+                      <p>
+                        <strong>Status:</strong> {payment.status}
+                      </p>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-center text-gray-600">No EMI payments found.</p>
+                <p className="text-center text-gray-600">
+                  No EMI payments found.
+                </p>
               )}
               <div className="text-center mt-4">
                 <button
@@ -239,8 +320,61 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+        {showAdminModal && (
+          <div className="fixed bottom-5 right-5 w-96 bg-white border rounded-lg shadow-lg z-50">
+            <div className="bg-green-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
+              <span>Admin Chat Panel</span>
+              <button onClick={() => setShowAdminModal(false)}>✖</button>
+            </div>
+
+            <div className="p-4">
+              {/* User ID Input */}
+
+              {/* Messages */}
+              <div
+                id="admin-msg-box"
+                className="max-h-48 overflow-y-auto mb-2 border rounded p-2 bg-white text-black"
+              >
+                {adminMessages.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center">
+                    No messages yet.
+                  </p>
+                ) : (
+                  adminMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
+                        msg.status === 2
+                          ? "bg-green-100 text-black ml-auto text-right"
+                          : "bg-blue-100 text-black mr-auto text-left"
+                      }`}
+                    >
+                      {msg.message}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Message Input */}
+              <textarea
+                rows={3}
+                style={{ color: "black" }}
+                className="w-full border p-2 rounded mb-2"
+                placeholder="Type your message to user..."
+                value={adminMessage}
+                onChange={(e) => setAdminMessage(e.target.value)}
+              ></textarea>
+
+              <button
+                onClick={handleAdminSendMessage}
+                className="w-full bg-green-600 text-white py-2 rounded"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-  
 }

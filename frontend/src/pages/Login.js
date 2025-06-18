@@ -46,6 +46,7 @@ export default function LoginPage() {
       localStorage.setItem("role", user.role);
       localStorage.setItem("userName", user.name);
       localStorage.setItem("userEmail", user.email);
+      localStorage.setItem("userId", user.id);
 
       Swal.fire({
         icon: "success",

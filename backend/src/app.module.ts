@@ -11,6 +11,8 @@ import { LoanModule } from './Loan/loan.module';
 import { Loan } from './Loan/loan.entity';
 import { EmiPayment } from './emi-payment/emi-payment.entity';
 import { EmiPaymentsModule } from './emi-payment/emi-payments.module';
+import { ChatMessage } from './chat/chat-message.entity';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -21,7 +23,7 @@ import { EmiPaymentsModule } from './emi-payment/emi-payments.module';
       username: 'root',
       password: 'tipu0786',
       database: 'crud',
-      entities: [User, Bank, Loan, EmiPayment],
+      entities: [User, Bank, Loan, EmiPayment, ChatMessage],
       synchronize: true, // turn off in production!
     }),
 
@@ -30,6 +32,7 @@ import { EmiPaymentsModule } from './emi-payment/emi-payments.module';
     BanksModule,
     LoanModule,
     EmiPaymentsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

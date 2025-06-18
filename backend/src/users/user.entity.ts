@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { Loan } from '../Loan/loan.entity';
 import { EmiPayment } from '../emi-payment/emi-payment.entity';
+import { ChatMessage } from '../chat/chat-message.entity';
 
 
 @Entity()
@@ -26,6 +27,9 @@ export class User {
   // src/users/user.entity.ts
 @OneToMany(() => EmiPayment, (emi) => emi.user)
 emiPayments: EmiPayment[];
+
+@OneToMany(() => ChatMessage, (chat) => chat.user)
+messages: ChatMessage[];
 
 
 }

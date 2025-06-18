@@ -31,6 +31,24 @@ export default function LoanForm() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [message, setMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
+
+  const fetchMessages = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    try {
+      const res = await axios.get(`http://localhost:3000/chat/${userId}`);
+      setChatMessages(res.data.messages);
+    } catch (err) {
+      console.error("Failed to fetch messages:", err.response?.data || err);
+    }
+  };
+  useEffect(() => {
+    if (showSupportModal) {
+      fetchMessages();
+    }
+  }, [showSupportModal]);
 
   const fetchLoans = async () => {
     try {
@@ -260,16 +278,24 @@ export default function LoanForm() {
 
   const handleSendMessage = async () => {
     try {
-
       const userId = localStorage.getItem("userId");
-      await axios.post("http://localhost:3000/help-support", {
-        userId,
+      console.log("User ID:", userId);
+      if (!userId || !message.trim()) {
+        toast.error("Please type a message");
+        return;
+      }
+
+      await axios.post("http://localhost:3000/chat", {
+        userId: Number(userId),
         message,
+        sender: "user",
       });
+
       toast.success("Message sent to admin!");
       setMessage("");
-      setShowSupportModal(false);
+      fetchMessages();
     } catch (err) {
+      console.error("Chat Error:", err.response?.data || err);
       toast.error("Error sending message");
     }
   };
@@ -311,12 +337,12 @@ export default function LoanForm() {
             </button>
 
             <button
-        onClick={() => setShowSupportModal(true)}
-        className="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg shadow-md"
-      >
-        <FaQuestionCircle className="mr-2" />
-        Help & Support
-      </button>
+              onClick={() => setShowSupportModal(true)}
+              className="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg shadow-md"
+            >
+              <FaQuestionCircle className="mr-2" />
+              Help & Support
+            </button>
           </div>
         </div>
       </header>
@@ -727,29 +753,54 @@ export default function LoanForm() {
         </div>
       )}
 
-{showSupportModal && (
-  <div className="fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50">
-    <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
-      <span>Help & Support</span>
-      <button onClick={() => setShowSupportModal(false)}>✖</button>
-    </div>
-    <div className="p-4">
-      <textarea
-        rows={4}
-        className="w-full border p-2 rounded"
-        placeholder="Type your message to admin..."
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-      ></textarea>
-      <button
-        onClick={handleSendMessage}
-        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded"
-      >
-        Send
-      </button>
-    </div>
-  </div>
-)}
+      {showSupportModal && (
+        <div className="fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50">
+          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
+            <span>Help & Support</span>
+            <button onClick={() => setShowSupportModal(false)}>✖</button>
+          </div>
+
+          <div className="p-4">
+            {/* Chat messages */}
+            <div className="max-h-48 overflow-y-auto mb-4 border rounded p-2 bg-gray-50">
+              {chatMessages.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center">
+                  No messages yet.
+                </p>
+              ) : (
+                chatMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
+                      msg.status === 1
+                        ? "bg-green-100 text-black ml-auto text-right" // status 2 = right
+                        : "bg-blue-100 text-black mr-auto text-left" // status 1 = left
+                    }`}
+                  >
+                    {msg.message}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Message input */}
+            <textarea
+              rows={3}
+              className="w-full border p-2 rounded mb-2"
+              placeholder="Type your message to admin..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            ></textarea>
+
+            <button
+              onClick={handleSendMessage}
+              className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
