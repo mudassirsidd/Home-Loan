@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-toastify";
 import { FaQuestionCircle } from "react-icons/fa";
+import { io } from "socket.io-client";
+import API from "../api";
+import DraggableModal from "./DraggableModal"; 
 
 export default function LoanForm() {
   const name = localStorage.getItem("userName") || "User Name";
   const email = localStorage.getItem("userEmail") || "user@example.com";
   const role = localStorage.getItem("role") || "user";
   const token = localStorage.getItem("token");
+  const socket = io("http://localhost:3000");
+  const modalRef = useRef(null);
 
   const [banks, setBanks] = useState([]);
   const [formData, setFormData] = useState({
@@ -32,27 +36,75 @@ export default function LoanForm() {
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [message, setMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
+  const userId = localStorage.getItem("userId");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const endOfMessagesRef = useRef(null);
+
+  useEffect(() => {
+    // Scroll to bottom when messages update
+    if (endOfMessagesRef.current) {
+      endOfMessagesRef.current.scrollTop = endOfMessagesRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
 
   const fetchMessages = async () => {
-    const userId = localStorage.getItem("userId");
     if (!userId) return;
-
     try {
-      const res = await axios.get(`http://localhost:3000/chat/${userId}`);
+      const res = await API.get(`/chat/${userId}`);
       setChatMessages(res.data.messages);
     } catch (err) {
       console.error("Failed to fetch messages:", err.response?.data || err);
     }
   };
+
+  // Send message via WebSocket
+  const handleSendMessage = async () => {
+    if (!userId || !message.trim()) {
+      toast.error("Please type a message");
+      return;
+    }
+
+    const payload = {
+      userId: Number(userId),
+      message,
+      sender: "user",
+    };
+
+    socket.emit("send_message", payload); // WebSocket emit
+    setMessage("");
+    toast.success("Message sent to admin!");
+  };
+
+  // Listen for incoming WebSocket messages
+  useEffect(() => {
+    if (!userId) return;
+
+    socket.on(`receive_message_${userId}`, (msg) => {
+      console.log("Received message:", msg);
+      setChatMessages((prev) => [...prev, msg]);
+
+      // If chat box is closed, increase unread count
+      if (!showSupportModal) {
+        setUnreadCount((prev) => prev + 1);
+      }
+    });
+
+    return () => {
+      socket.off(`receive_message_${userId}`);
+    };
+  }, [userId, showSupportModal]);
+
+  // Fetch messages when modal opens, and reset unread count
   useEffect(() => {
     if (showSupportModal) {
       fetchMessages();
+      setUnreadCount(0); // Clear unread count when modal opens
     }
   }, [showSupportModal]);
 
   const fetchLoans = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/loan", {
+      const res = await API.get("/loan", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -70,8 +122,8 @@ export default function LoanForm() {
   };
 
   useEffect(() => {
-    axios
-      .get("http://localhost:3000/banks")
+    API
+      .get("/banks")
       .then((res) => setBanks(res.data))
       .catch((err) => console.error("Error fetching banks:", err));
 
@@ -106,7 +158,7 @@ export default function LoanForm() {
         intrestRate: String(formData.intrestRate),
       };
 
-      await axios.post("http://localhost:3000/loan", payload, {
+      await API.post("/loan", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -185,8 +237,8 @@ export default function LoanForm() {
         (principal * monthlyRate * Math.pow(1 + monthlyRate, duration)) /
         (Math.pow(1 + monthlyRate, duration) - 1);
 
-      await axios.post(
-        "http://localhost:3000/emi-payments/pay",
+      await API.post(
+        "/emi-payments/pay",
         {
           userId: selectedLoan.userId,
           loanId: selectedLoan.id,
@@ -213,8 +265,8 @@ export default function LoanForm() {
   const handleViewHistory = async (loanId) => {
     try {
       const token = localStorage.getItem("token"); // <-- moved inside function
-      const res = await axios.get(
-        `http://localhost:3000/emi-payments/history/${loanId}`,
+      const res = await API.get(
+        `/emi-payments/history/${loanId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -276,29 +328,29 @@ export default function LoanForm() {
     return dueDate.toLocaleDateString("en-IN");
   };
 
-  const handleSendMessage = async () => {
-    try {
-      const userId = localStorage.getItem("userId");
-      console.log("User ID:", userId);
-      if (!userId || !message.trim()) {
-        toast.error("Please type a message");
-        return;
-      }
+  // const handleSendMessage = async () => {
+  //   try {
+  //     const userId = localStorage.getItem("userId");
+  //     console.log("User ID:", userId);
+  //     if (!userId || !message.trim()) {
+  //       toast.error("Please type a message");
+  //       return;
+  //     }
 
-      await axios.post("http://localhost:3000/chat", {
-        userId: Number(userId),
-        message,
-        sender: "user",
-      });
+  //     await axios.post("http://localhost:3000/chat", {
+  //       userId: Number(userId),
+  //       message,
+  //       sender: "user",
+  //     });
 
-      toast.success("Message sent to admin!");
-      setMessage("");
-      fetchMessages();
-    } catch (err) {
-      console.error("Chat Error:", err.response?.data || err);
-      toast.error("Error sending message");
-    }
-  };
+  //     toast.success("Message sent to admin!");
+  //     setMessage("");
+  //     fetchMessages();
+  //   } catch (err) {
+  //     console.error("Chat Error:", err.response?.data || err);
+  //     toast.error("Error sending message");
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-100 to-white font-sans text-gray-800">
@@ -338,10 +390,15 @@ export default function LoanForm() {
 
             <button
               onClick={() => setShowSupportModal(true)}
-              className="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg shadow-md"
+              className="relative flex items-center bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg shadow-md"
             >
-              <FaQuestionCircle className="mr-2" />
+              <FaQuestionCircle className="mr-2 text-lg" />
               Help & Support
+              {unreadCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -753,54 +810,57 @@ export default function LoanForm() {
         </div>
       )}
 
-      {showSupportModal && (
-        <div className="fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50">
-          <div className="bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
-            <span>Help & Support</span>
-            <button onClick={() => setShowSupportModal(false)}>✖</button>
-          </div>
+{showSupportModal && (
+  <DraggableModal ref={modalRef}>
+    <div className="w-96 fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50 cursor-move">
+      {/* Header with handle */}
+      <div className="modal-header bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-move">
+        <span>Help & Support</span>
+        <button onClick={() => setShowSupportModal(false)}>✖</button>
+      </div>
 
-          <div className="p-4">
-            {/* Chat messages */}
-            <div className="max-h-48 overflow-y-auto mb-4 border rounded p-2 bg-gray-50">
-              {chatMessages.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center">
-                  No messages yet.
-                </p>
-              ) : (
-                chatMessages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
-                      msg.status === 1
-                        ? "bg-green-100 text-black ml-auto text-right" // status 2 = right
-                        : "bg-blue-100 text-black mr-auto text-left" // status 1 = left
-                    }`}
-                  >
-                    {msg.message}
-                  </div>
-                ))
-              )}
-            </div>
+      {/* Modal Content */}
+      <div className="p-4">
+        <div
+  ref={endOfMessagesRef} // 👈 ref moved here
+  className="max-h-48 overflow-y-auto mb-4 border rounded p-2 bg-gray-50"
+>
+  {chatMessages.length === 0 ? (
+    <p className="text-sm text-gray-500 text-center">No messages yet.</p>
+  ) : (
+    chatMessages.map((msg, idx) => (
+      <div
+        key={idx}
+        className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
+          msg.status === 1
+            ? "bg-green-100 text-black ml-auto text-right"
+            : "bg-blue-100 text-black mr-auto text-left"
+        }`}
+      >
+        {msg.message}
+      </div>
+    ))
+  )}
+</div>
 
-            {/* Message input */}
-            <textarea
-              rows={3}
-              className="w-full border p-2 rounded mb-2"
-              placeholder="Type your message to admin..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            ></textarea>
+        <textarea
+          rows={3}
+          className="w-full border p-2 rounded mb-2"
+          placeholder="Type your message to admin..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        ></textarea>
 
-            <button
-              onClick={handleSendMessage}
-              className="w-full bg-blue-500 text-white px-4 py-2 rounded"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      )}
+        <button
+          onClick={handleSendMessage}
+          className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  </DraggableModal>
+)}
     </div>
   );
 }

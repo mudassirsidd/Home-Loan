@@ -30,8 +30,8 @@ export class LoanController {
     user.email = jwtUser.email;
     user.role = jwtUser.role;
 
-    console.log('Data received for loan application:', data);
-    console.log('User object for loan:', user);
+    // console.log('Data received for loan application:', data);
+    // console.log('User object for loan:', user);
     return this.loanService.applyLoan(user, data);
   }
 

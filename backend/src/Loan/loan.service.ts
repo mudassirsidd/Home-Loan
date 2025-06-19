@@ -31,7 +31,7 @@ export class LoanService {
       );
     }
 
-    console.log('Loan application data:', user);
+    // console.log('Loan application data:', user);
     // Create and save new loan
     const loan = this.loanRepo.create({
       bank_name: data.bank_name,
@@ -47,7 +47,7 @@ export class LoanService {
       user,
     });
 
-    console.log('Loan object before save:', loan);
+    // console.log('Loan object before save:', loan);
 
     return this.loanRepo.save(loan);
   }

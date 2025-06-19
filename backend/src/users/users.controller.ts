@@ -10,7 +10,6 @@ import {
     UseGuards,
     ForbiddenException,
   } from '@nestjs/common';
-  import { Request } from 'express';
   import { UserService } from './users.service';
   import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // adjust path if needed
   
@@ -21,7 +20,7 @@ export class UserController {
 
   @Get()
   findAll(@Req() req: any) {
-    console.log(req.user);
+    // console.log(req.user);
     return this.userService.findAll(req.user);
   }
 

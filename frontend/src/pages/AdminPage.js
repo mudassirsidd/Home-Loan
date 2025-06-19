@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect, useState, useRef } from "react";
 import { toast } from "react-toastify";
-
+import { io } from "socket.io-client";
+import API from "../api"; // Adjust the import based on your API setup
+import DraggableModal from "./DraggableModal";
 export default function AdminPage() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -12,41 +13,63 @@ export default function AdminPage() {
   const [adminUserId, setAdminUserId] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [adminMessages, setAdminMessages] = useState([]);
+  const socket = io("http://localhost:3000"); // your NestJS backend websocket server
+  // const messagesEndRef = useRef(null);
+  const modalRef = useRef(null);
+  const msgBoxRef = useRef(null);
+
+  useEffect(() => {
+    if (msgBoxRef.current) {
+      msgBoxRef.current.scrollTop = msgBoxRef.current.scrollHeight;
+    }
+  }, [adminMessages]);
+  
 
   const fetchAdminMessages = async () => {
     if (!adminUserId) return;
     try {
-      const res = await axios.get(`http://localhost:3000/chat/${adminUserId}`);
+      const res = await API.get(`/chat/${adminUserId}`); // Use the `api` instance
       setAdminMessages(res.data.messages);
     } catch (err) {
       console.error("Admin fetch error:", err);
     }
   };
-
-  const handleAdminSendMessage = async () => {
+  const handleAdminSendMessage = () => {
     if (!adminUserId || !adminMessage.trim()) return;
 
-    try {
-      await axios.post("http://localhost:3000/chat", {
-        userId: Number(adminUserId),
-        message: adminMessage,
-        sender: "admin",
-      });
-      setAdminMessage("");
-      fetchAdminMessages();
-    } catch (err) {
-      console.error("Admin send error:", err);
-    }
+    const payload = {
+      userId: Number(adminUserId),
+      message: adminMessage,
+      sender: "admin",
+    };
+
+    socket.emit("send_message", payload); // Send via WebSocket
+    setAdminMessage("");
   };
 
+  // Setup WebSocket to listen for new messages for this user
   useEffect(() => {
-    if (showAdminModal) fetchAdminMessages();
+    if (!adminUserId) return;
+
+    socket.on(`receive_message_${adminUserId}`, (msg) => {
+      setAdminMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      socket.off(`receive_message_${adminUserId}`);
+    };
+  }, [adminUserId]);
+
+  useEffect(() => {
+    if (showAdminModal && adminUserId) {
+      fetchAdminMessages();
+    }
   }, [showAdminModal, adminUserId]);
 
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:3000/users", {
+      const res = await API.get("/users", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(res.data);
@@ -59,7 +82,7 @@ export default function AdminPage() {
   const fetchUserLoans = async (userId) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(`http://localhost:3000/loan/user/${userId}`, {
+      const res = await API.get(`/loan/user/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUserLoans(res.data);
@@ -73,8 +96,8 @@ export default function AdminPage() {
   const updateStatus = async (loanId, status) => {
     try {
       const token = localStorage.getItem("token");
-      await axios.patch(
-        `http://localhost:3000/loan/${loanId}/status`,
+      await API.patch(
+        `/loan/${loanId}/status`,
         { status },
         {
           headers: {
@@ -95,12 +118,9 @@ export default function AdminPage() {
   const handleViewHistory = async (loanId) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `http://localhost:3000/emi-payments/history/${loanId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await API.get(`/emi-payments/history/${loanId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setEmiHistory(res.data);
       setShowHistoryModal(true);
       toast.success("EMI payment history loaded successfully.");
@@ -321,58 +341,61 @@ export default function AdminPage() {
           </div>
         )}
         {showAdminModal && (
-          <div className="fixed bottom-5 right-5 w-96 bg-white border rounded-lg shadow-lg z-50">
-            <div className="bg-green-700 text-white px-4 py-2 rounded-t-lg flex justify-between items-center">
-              <span>Admin Chat Panel</span>
-              <button onClick={() => setShowAdminModal(false)}>✖</button>
-            </div>
-
-            <div className="p-4">
-              {/* User ID Input */}
-
-              {/* Messages */}
-              <div
-                id="admin-msg-box"
-                className="max-h-48 overflow-y-auto mb-2 border rounded p-2 bg-white text-black"
-              >
-                {adminMessages.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center">
-                    No messages yet.
-                  </p>
-                ) : (
-                  adminMessages.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
-                        msg.status === 2
-                          ? "bg-green-100 text-black ml-auto text-right"
-                          : "bg-blue-100 text-black mr-auto text-left"
-                      }`}
-                    >
-                      {msg.message}
-                    </div>
-                  ))
-                )}
+          <DraggableModal ref={modalRef}>
+            <div className=" w-96 bg-white border rounded-lg shadow-lg z-50">
+              <div className="modal-header bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-move">
+                <span>Chat with User</span>
+                <button onClick={() => setShowAdminModal(false)}>✖</button>
               </div>
 
-              {/* Message Input */}
-              <textarea
-                rows={3}
-                style={{ color: "black" }}
-                className="w-full border p-2 rounded mb-2"
-                placeholder="Type your message to user..."
-                value={adminMessage}
-                onChange={(e) => setAdminMessage(e.target.value)}
-              ></textarea>
+              <div className="p-4">
+                
 
-              <button
-                onClick={handleAdminSendMessage}
-                className="w-full bg-green-600 text-white py-2 rounded"
-              >
-                Send
-              </button>
+                {/* Messages */}
+                <div
+                  id="admin-msg-box"
+                  ref={msgBoxRef}
+                  className="max-h-48 overflow-y-auto mb-2 border rounded p-2 bg-white text-black"
+                >
+                  {adminMessages.length === 0 ? (
+                    <p className="text-sm text-gray-500 text-center">
+                      No messages yet.
+                    </p>
+                  ) : (
+                    adminMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
+                          msg.status === 2
+                            ? "bg-slate-200 text-black ml-auto text-right"
+                            : "bg-blue-100 text-black mr-auto text-left"
+                        }`}
+                      >
+                        {msg.message}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Message Input */}
+                <textarea
+                  rows={3}
+                  style={{ color: "black" }}
+                  className="w-full border p-2 rounded mb-2"
+                  placeholder="Type your message to user..."
+                  value={adminMessage}
+                  onChange={(e) => setAdminMessage(e.target.value)}
+                ></textarea>
+
+                <button
+                  onClick={handleAdminSendMessage}
+                  className="w-full bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white py-2 rounded"
+                >
+                  Send
+                </button>
+              </div>
             </div>
-          </div>
+          </DraggableModal>
         )}
       </div>
     </div>
