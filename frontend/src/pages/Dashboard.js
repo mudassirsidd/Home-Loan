@@ -3,7 +3,8 @@ import { toast } from "react-toastify";
 import { FaQuestionCircle } from "react-icons/fa";
 import { io } from "socket.io-client";
 import API from "../api";
-import DraggableModal from "./DraggableModal"; 
+import DraggableModal from "./DraggableModal";
+import html2pdf from "html2pdf.js";
 
 export default function LoanForm() {
   const name = localStorage.getItem("userName") || "User Name";
@@ -39,14 +40,53 @@ export default function LoanForm() {
   const userId = localStorage.getItem("userId");
   const [unreadCount, setUnreadCount] = useState(0);
   const endOfMessagesRef = useRef(null);
+  const pdfRef = useRef(null);
+
+  const handleDownloadPDF = () => {
+    if (!pdfRef.current) return;
+
+    // Temporarily remove scroll restriction for full PDF capture
+    const scrollList = pdfRef.current.querySelector("ul");
+    const originalClass = scrollList?.className;
+
+    if (scrollList) {
+      scrollList.className = scrollList.className.replace(
+        /max-h-\d+[^ ]*/g,
+        ""
+      ); // remove max-h-96
+      scrollList.style.maxHeight = "none";
+      scrollList.style.overflow = "visible";
+    }
+
+    const options = {
+      margin: 0.5,
+      filename: "EMI_Payment_History.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+    };
+
+    html2pdf()
+      .set(options)
+      .from(pdfRef.current)
+      .save()
+      .then(() => {
+        // Restore scroll styling after PDF generation
+        if (scrollList) {
+          scrollList.className = originalClass || "";
+        }
+      });
+  };
 
   useEffect(() => {
     // Scroll to bottom when messages update
     if (endOfMessagesRef.current) {
-      endOfMessagesRef.current.scrollTop = endOfMessagesRef.current.scrollHeight;
+      endOfMessagesRef.current.scrollTop =
+        endOfMessagesRef.current.scrollHeight;
     }
   }, [chatMessages]);
 
+  // Fetch chat messages from the server
   const fetchMessages = async () => {
     if (!userId) return;
     try {
@@ -122,8 +162,7 @@ export default function LoanForm() {
   };
 
   useEffect(() => {
-    API
-      .get("/banks")
+    API.get("/banks")
       .then((res) => setBanks(res.data))
       .catch((err) => console.error("Error fetching banks:", err));
 
@@ -265,12 +304,9 @@ export default function LoanForm() {
   const handleViewHistory = async (loanId) => {
     try {
       const token = localStorage.getItem("token"); // <-- moved inside function
-      const res = await API.get(
-        `/emi-payments/history/${loanId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await API.get(`/emi-payments/history/${loanId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setEmiHistory(res.data);
       setShowHistoryModal(true);
       toast.success(" EMI payment history loaded!");
@@ -765,102 +801,137 @@ export default function LoanForm() {
       )}
 
       {showHistoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-xl w-full">
-            <h2 className="text-xl font-bold mb-4 text-center">
-              EMI Payment History
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl transform transition-all scale-100">
+            {/* Friendly Emoji Heading */}
+            <h2 className="text-2xl font-bold mb-6 text-center text-blue-700 tracking-wide">
+              💰📆 EMI Payment History 🧾✅
             </h2>
-            {emiHistory.length > 0 ? (
-              <ul className="space-y-2 max-h-80 overflow-y-auto">
-                {emiHistory.map((payment, index) => (
-                  <li
-                    key={index}
-                    className="border p-2 rounded shadow text-gray-700"
-                  >
-                    <p>
-                      <strong>Month:</strong> ({index + 1})
-                    </p>
-                    <p>
-                      <strong>Amount:</strong> ₹{payment.amount}
-                    </p>
-                    <p>
-                      <strong>Paid On:</strong>{" "}
-                      {new Date(payment.paymentDate).toLocaleDateString()}
-                    </p>
-                    <p>
-                      <strong>Status:</strong> {payment.status}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-center text-gray-600">
-                No EMI payments found.
-              </p>
-            )}
-            <div className="text-center mt-4">
+
+            {/* EMI History Content for PDF */}
+            <div ref={pdfRef}>
+              {emiHistory.length > 0 ? (
+                <ul className="space-y-4 max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-blue-100 px-1">
+                  {emiHistory.map((payment, index) => (
+                    <li
+                      key={index}
+                      className="border border-gray-200 bg-blue-50 hover:bg-blue-100 transition duration-200 p-4 rounded-xl shadow-sm"
+                    >
+                      <p className="text-sm text-gray-800">
+                        <span className="font-semibold text-blue-600">
+                          Month:
+                        </span>{" "}
+                        {index + 1}
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        <span className="font-semibold text-blue-600">
+                          Amount:
+                        </span>{" "}
+                        ₹{payment.amount}
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        <span className="font-semibold text-blue-600">
+                          Paid On:
+                        </span>{" "}
+                        {new Date(payment.paymentDate).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        <span className="font-semibold text-blue-600">
+                          Status:
+                        </span>{" "}
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                            payment.status === "Paid"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {payment.status}
+                        </span>
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-center text-gray-500 italic">
+                  No EMI payments found.
+                </p>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-center gap-4 mt-6 flex-wrap">
+              <button
+                onClick={handleDownloadPDF}
+                className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-full shadow-md transition-all duration-200"
+              >
+                📥 Download as PDF
+              </button>
+
               <button
                 onClick={() => setShowHistoryModal(false)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-6 py-2 rounded-full shadow-md transition-all duration-200"
               >
-                Close
+                🚪Close
               </button>
             </div>
           </div>
         </div>
       )}
 
-{showSupportModal && (
-  <DraggableModal ref={modalRef}>
-    <div className="w-96 fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50 cursor-move">
-      {/* Header with handle */}
-      <div className="modal-header bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-move">
-        <span>Help & Support</span>
-        <button onClick={() => setShowSupportModal(false)}>✖</button>
-      </div>
+      {showSupportModal && (
+        <DraggableModal ref={modalRef}>
+          <div className="w-96 fixed bottom-5 right-5 w-80 bg-white border rounded-lg shadow-lg z-50 cursor-move">
+            {/* Header with handle */}
+            <div className="modal-header bg-blue-600 text-white px-4 py-2 rounded-t-lg flex justify-between items-center cursor-move">
+              <span>Help & Support</span>
+              <button onClick={() => setShowSupportModal(false)}>✖</button>
+            </div>
 
-      {/* Modal Content */}
-      <div className="p-4">
-        <div
-  ref={endOfMessagesRef} // 👈 ref moved here
-  className="max-h-48 overflow-y-auto mb-4 border rounded p-2 bg-gray-50"
->
-  {chatMessages.length === 0 ? (
-    <p className="text-sm text-gray-500 text-center">No messages yet.</p>
-  ) : (
-    chatMessages.map((msg, idx) => (
-      <div
-        key={idx}
-        className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
-          msg.status === 1
-            ? "bg-green-100 text-black ml-auto text-right"
-            : "bg-blue-100 text-black mr-auto text-left"
-        }`}
-      >
-        {msg.message}
-      </div>
-    ))
-  )}
-</div>
+            {/* Modal Content */}
+            <div className="p-4">
+              <div
+                ref={endOfMessagesRef} // 👈 ref moved here
+                className="max-h-48 overflow-y-auto mb-4 border rounded p-2 bg-gray-50"
+              >
+                {chatMessages.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center">
+                    No messages yet.
+                  </p>
+                ) : (
+                  chatMessages.map((msg, idx) => (
+                    <div
+                      key={idx}
+                      className={`mb-2 p-2 rounded text-sm max-w-[80%] ${
+                        msg.status === 1
+                          ? "bg-green-100 text-black ml-auto text-right"
+                          : "bg-blue-100 text-black mr-auto text-left"
+                      }`}
+                    >
+                      {msg.message}
+                    </div>
+                  ))
+                )}
+              </div>
 
-        <textarea
-          rows={3}
-          className="w-full border p-2 rounded mb-2"
-          placeholder="Type your message to admin..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-        ></textarea>
+              <textarea
+                rows={3}
+                className="w-full border p-2 rounded mb-2"
+                placeholder="Type your message to admin..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+              ></textarea>
 
-        <button
-          onClick={handleSendMessage}
-          className="w-full bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Send
-        </button>
-      </div>
-    </div>
-  </DraggableModal>
-)}
+              <button
+                onClick={handleSendMessage}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </DraggableModal>
+      )}
     </div>
   );
 }
